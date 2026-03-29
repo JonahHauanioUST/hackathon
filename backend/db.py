@@ -87,7 +87,7 @@ def _build_user_content(message: str, urls: list[str]) -> str:
 
 async def query_llm(message: str, urls: list[str]) -> str:
     async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
+        resp = await client.post (
             "https://api.anthropic.com/v1/messages",
             headers={
                 "x-api-key": ANTHROPIC_API_KEY,
