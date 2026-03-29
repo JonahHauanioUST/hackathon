@@ -16,7 +16,8 @@ async def fetch_pull_requests(
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github+json",
     }
-
+    #this does nothing
+    
     results = []
     async with httpx.AsyncClient(timeout=30, headers=headers) as client:
         for url in urls:
