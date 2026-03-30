@@ -17,9 +17,9 @@ async def fetch_pull_requests(
         "Accept": "application/vnd.github+json",
     }
     #this does nothing
-    
+
     results = []
-    async with httpx.AsyncClient(timeout=30, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=30, headers=headers, verify=False) as client:
         for url in urls:
             match = pattern.search(url)
             if not match:
@@ -54,5 +54,24 @@ async def fetch_pull_requests(
                 + "\n\n".join(patches)
             )
             results.append(result)
-
+            print('test',results)
     return results
+
+
+if __name__ == "__main__":
+    import asyncio
+    import sys
+    import ast
+    if len(sys.argv) != 3:
+        print("Usage: python pr_retriever.py '<urls>' '<token>'")
+        sys.exit(1)
+    urls_str = sys.argv[1]
+    token = sys.argv[2]
+    try:
+        urls = ast.literal_eval(urls_str)
+    except:
+        print("Invalid urls format")
+        sys.exit(1)
+    results = asyncio.run(fetch_pull_requests(urls, token))
+    for result in results:
+        print(result)
