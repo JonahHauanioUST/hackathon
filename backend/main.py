@@ -12,7 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import (
     ChatRequest, ChatResponse,
-    init_db, insert_chat, fetch_chat, fetch_recent_chats, query_llm,
+    ChangeRequestRequest, ChangeRequestResponse,
+    init_db, insert_chat, fetch_chat, fetch_recent_chats,
+    query_llm, generate_change_request,
 )
 
 
@@ -54,6 +56,33 @@ async def chat(req: ChatRequest):
         message=req.message,
         urls=req.urls,
         llm_reply=llm_reply,
+        created_at=created_at,
+    )
+
+
+@app.post("/change-request", response_model=ChangeRequestResponse)
+async def create_change_request(req: ChangeRequestRequest):
+    chat_id = str(uuid.uuid4())
+    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Step 1: Summarize the URLs
+    try:
+        summary = await query_llm("Summarize the changes in these merge requests.", req.urls)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LLM summary error: {exc}")
+
+    # Step 2: Generate the change request from the summary + description
+    try:
+        change_request = await generate_change_request(summary, req.description)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LLM change request error: {exc}")
+
+    return ChangeRequestResponse(
+        id=chat_id,
+        description=req.description,
+        urls=req.urls,
+        summary=summary,
+        change_request=change_request,
         created_at=created_at,
     )
 
