@@ -48,7 +48,18 @@ async function realApiCall({ message, urls }) {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  return { text: data.llm_reply, files: [] }; // Map backend response
+  return { text: data.llm_reply, files: [] };
+}
+
+async function generateChangeRequest({ description, urls }) {
+  const res = await fetch("http://localhost:8000/change-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description, urls }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data;
 }
 
 /* ─── Components ──────────────────────────────────────────── */
@@ -168,6 +179,7 @@ export default function App() {
   const [urls, setUrls] = useState([]);
   const [urlInput, setUrlInput] = useState("");
   const [chatInput, setChatInput] = useState("");
+  const [description, setDescription] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef(null);
@@ -231,11 +243,42 @@ export default function App() {
     }
   };
 
+  const handleGenerateCR = async () => {
+    if (urls.length === 0 || loading) return;
+    setLoading(true);
+
+    const userMsg = {
+      role: "user",
+      text: `Generate Change Request for ${urls.length} URL(s)${description.trim() ? `\n\nDescription: ${description}` : ""}`,
+      time: now(),
+    };
+    setMessages((p) => [...p, userMsg]);
+
+    try {
+      const result = await generateChangeRequest({ description, urls });
+
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", text: `**Summary:**\n${result.summary}`, time: now() },
+        { role: "assistant", text: result.change_request, time: now() },
+      ]);
+    } catch (err) {
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", text: `Error: ${err.message}`, time: now() },
+      ]);
+    } finally {
+      setLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
   const handleReset = () => {
     setMessages([]);
     setUrls([]);
     setUrlInput("");
     setChatInput("");
+    setDescription("");
     setLoading(false);
   };
 
@@ -338,6 +381,41 @@ export default function App() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* ─── Description & Generate CR ─── */}
+      <div style={{
+        padding: "10px 20px", borderBottom: "1px solid var(--border)",
+        flexShrink: 0, background: "var(--surface)",
+      }}>
+        <textarea
+          placeholder="Describe the change (context, motivation, constraints)…"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          style={{
+            width: "100%", padding: "8px 10px", background: "var(--bg)",
+            border: "1px solid var(--border)", borderRadius: 5,
+            color: "var(--text)", fontFamily: SANS, fontSize: 13,
+            resize: "vertical", lineHeight: 1.5, minHeight: 42, maxHeight: 160,
+          }}
+        />
+        <button
+          onClick={handleGenerateCR}
+          disabled={urls.length === 0 || loading}
+          style={{
+            marginTop: 8, padding: "8px 18px",
+            background: urls.length === 0 || loading ? "var(--surface-raised)" : "var(--accent)",
+            border: "1px solid var(--border)", borderRadius: 6,
+            color: urls.length === 0 || loading ? "var(--text-muted)" : "#0c0e10",
+            fontFamily: MONO, fontSize: 12, fontWeight: 500,
+            cursor: urls.length === 0 || loading ? "default" : "pointer",
+            opacity: urls.length === 0 || loading ? 0.5 : 1,
+            transition: "all 0.2s",
+          }}
+        >
+          Generate Change Request
+        </button>
       </div>
 
       {/* ─── Chat Area ─── */}
